@@ -1,3 +1,3 @@
 # ims-2025-Lisa
 
-- [assignment1](week1-assignment)
+- [assignment1](week1)
