@@ -21,7 +21,7 @@ const CAM_HEIGHT = 480;
 const RESOLUTION = 40;
 
 function setup() {
-  createCanvas(800, 600);
+  createCanvas(windowWidth, windowHeight);
   setupMoveNet();
   
   let urlParams = get_url_params();
