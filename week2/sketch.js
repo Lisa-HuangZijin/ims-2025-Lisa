@@ -1,308 +1,472 @@
+//press enter to enter full screen
+//resize the windows as you want to Shiver Kitten
 
-const CAM_WIDTH = 640;
-const CAM_HEIGHT = 480;
-const RESOLUTION = 40;
+//things happens sometimes😅 If your cat is crushed into a cookie, you can lift it with your mouse to help it recover❤️
 
-let angles = [];
-let rows, cols;
-let metro, right, left;
+//adapted from my Nature of Code weekly assigment, using spring force
+//example code https://editor.p5js.org/Lisa-HuangZijin/sketches/eamanZED7
 
-let vehicles = [];
-let creatures1 = [];
-let triggerCreature;
-
-let inc = 0.01;
-let start = 0;
-let forward = inc * 30;
-let maxNum = 10;
-
-let rightPos = 0;
-let leftPos = 0;
-
-let flocks = [];
-
-let backgroundColor = 0;
-let mouseIsInside;
-
-function preload() {
-  metro = loadImage("metro6.png");
-  metro2 = loadImage("metro7.png");
-  right = loadImage("rightDoor.png");
-  left = loadImage("leftDoor.png");
-}
-
-let gui;
-
-let ui = {
-  Num: 6,
-};
+let balls = [];
+let springs = [];
+let tails = [];
+let linkTail = [];
+let wings=[]
+let linkWing=[]
+let wings2=[]
+let linkWing2=[]
 
 function setup() {
-  createCanvas(1280, 720); //0.8
+  createCanvas(windowWidth, windowHeight)
   
-  setupMoveNet(); // ***
+  //pixelDensity(0.1);
   
-  gui = new dat.GUI();
-  gui.add(ui, "Num", 1, maxNum).step(1).onChange(update);
-
-  setupFastSinCos();
-  starSetup();
-  setupConfidence();
-  setupResilience();
-
-  rows = ceil(width / RESOLUTION);
-  cols = ceil(height / RESOLUTION);
-
-  mover = new Mover(1100, 50);
-  for (let i = 0; i < maxNum * 6; i++) {
-    vehicles.push(new Vehicle(random(width), height / 3.5 + random() * 50));
+  for (let i = 0; i < 8; i++) {
+    balls.push(new Ball(i, i, 30));
+    stroke(0);
   }
 
-  for (let i = 0; i < maxNum; i++) {
-    creatures1.push(new Creature1());
+  for (let i = 0; i < balls.length; i++) {
+    balls[i].rad = 80;
+    if (i != balls.length - 1) {
+      springs.push(
+        new Spring(
+          balls[i],
+          balls[i + 1],
+          1.6 * 40 * sqrt(2 - 2 / sqrt(2)),
+          0.9
+        )
+      );
+    } else {
+      springs.push(
+        new Spring(balls[i], balls[0], 1.6 * 40 * sqrt(2 - 2 / sqrt(2)), 0.9)
+      );
+    }
   }
-  triggerCreature = new Creature1();
-  transitionCreature = new Creature1();
+  for (let i = 0; i < balls.length / 2; i++) {
+    springs.push(new Spring(balls[i], balls[i + balls.length / 2], 580, 0.12));
+  }
 
-  flocks.push(new Flock());
+  for (let i = 0; i < 6; i++) {
+    tails.push(new Ball(i, i, 10));
+    stroke(0);
+  }
 
-  wave1 = new Wave();
-  wave2 = new Wave();
+  for (let i = 0; i < tails.length - 1; i++) {
+    linkTail.push(new Spring(tails[i], tails[i + 1], 5, 0.95));
+  }
+  ////////////left///////////
+  for(let i=0;i<8;i++){
+    wings.push(new Ball(i,i,10))
+    wings[i].pos.x=0+50*i
+    wings[i].pos.y=0
+  }
+  for (let i = 0; i < wings.length - 1; i++) {
+    linkWing.push(new Spring(wings[i], wings[i + 1], 5, 0.95));
+  }
+  ///////////right////////////
+  for(let i=0;i<8;i++){
+    wings2.push(new Ball(i,i,10))
+    wings2[i].pos.x=100+50*i
+    wings2[i].pos.y=100
+  }
+  for (let i = 0; i < wings2.length - 1; i++) {
+    linkWing2.push(new Spring(wings2[i], wings2[i + 1], 4, 0.98));
+  }
+ 
+}
+
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+
+function keyPressed() {
+  if (keyCode === ENTER) {
+    let fs = fullscreen();
+    fullscreen(!fs); 
+    //fullscreen(true);
+  }
 }
 
 function draw() {
-  background(backgroundColor);
+  background(110,126,192);
   
-  updateMoveNet(); // ***
-  // x = pose.nose.x;
-  // y = pose.nose.y;
-  
-  let x=map(pose.nose.x,0,cam.width,0 ,width)
-  let y=map(pose.nose.y,0,cam.height,0 ,height)
-  
-  //console.log(pose.nose.score)
-  //console.log(cam.width)
-  //console.log(CAM_WIDTH)
-  //console.log(pose.nose)
-  //console.log(detector)
-  //mouseIsInside = mouseX > (3 * width) / 4;
-  mouseIsInside=pose.nose.score<0.50
-   
-  //////////////draw back scenery///////////
-  if (stopCount == 0 || stopCount == 1 || stopCount == 2) {
-    drawNoiseMountain();
-  } else if (stopCount == 3) {
-    if (transitionPosX < width / 2 + 260) {
-      drawNoiseMountain();
-    } else {
-      updateConfidence = false;
-      showC = false;
-      drawWave();
-    }
-  } else if (stopCount == 4 || stopCount == 5 || stopCount == 6) {
-    drawWave();
-  } else {
-    if (transitionPosX > width / 2 - 260) {
-      drawWave();
-    } else {
-      updateResilience = false;
-      showR = false;
-      drawNoiseMountain();
-    }
-  }
+ //noSmooth()
 
-  drawButton();
+  
+  //////////////////////the wings//////////////////////////
+  drawLeftWings()
+  drawRightWings()
+  
+
+////////////////////the body////////////////////
+  for (let s of springs) {
+    s.update();
+    //s.display();
+  }
+  noStroke();
+  //noFill()
+
+  fill(0);
+  beginShape();
+  for (let b of balls) {
+    b.mass = 10;
+    b.minHeight = windowHeight;
+    b.drag();
+    b.update();
+    b.display();
+
+    let gravity = createVector(0, 8);
+    b.applyForce(gravity);
+    b.stayInCanvas();
+    b.minHeight = windowHeight
+
+    curveVertex(b.pos.x, b.pos.y);
+  }
+  for (let b of balls) {
+    curveVertex(b.pos.x, b.pos.y);
+  }
+  endShape(CLOSE);
+
+  drawTails();
+
+  noStroke();
+  fill(248, 224, 15);
+  circle(
+    balls[7].pos.x + (balls[1].pos.x - balls[7].pos.x) / 2,
+    balls[1].pos.y + (balls[7].pos.y - balls[1].pos.y) / 2,
+    50
+  );
+  circle(
+    balls[7].pos.x + (balls[3].pos.x - balls[7].pos.x) / (1 + 1.8 * sqrt(2)),
+    balls[3].pos.y + (balls[7].pos.y - balls[3].pos.y) / (1.2 * sqrt(2)),
+    50
+  );
+
+  fill(0);
+  circle(
+    balls[7].pos.x + (balls[1].pos.x - balls[7].pos.x) / 2,
+    balls[1].pos.y + (balls[7].pos.y - balls[1].pos.y) / 2,
+    38
+  );
+  circle(
+    balls[7].pos.x + (balls[3].pos.x - balls[7].pos.x) / (1 + 1.8 * sqrt(2)),
+    balls[3].pos.y + (balls[7].pos.y - balls[3].pos.y) / (1.2 * sqrt(2)),
+    38
+  );
+
   stroke(255);
-  // text(mouseX, 20, 20);
-  // text(mouseY, 20, 50);
-  drawTransitionCreature();
-  
-  
-  //ellipse(x, y, 100);
+  noFill();
+  push();
+
+ 
 }
 
-let openTime = 0;
-let twinkleTime = 2500;
-let yellowTime = 5000;
-let lowerSpeed = 2000;
-let grayTime = 8000;
+function drawEllipse(p1,p2){
+  let mid = p5.Vector.add(p1, p2).mult(0.5);
+  let distance = p1.dist(p2);
+  let angle = atan2(p2.y - p1.y, p2.x - p1.x);
+  fill(255)
+  push();
+  translate(mid.x, mid.y); 
+  rotate(angle); 
+  ellipse(0, 0, distance, 30)
+  pop(); 
+}
 
-let triggerCount = 0;
-let stopCount = 0;
-let wasDetected = false;
-let timeCount = 0;
+function drawLeftWings(){
+  strokeWeight(6)
+  let x=balls[6].pos.x-50
+  let y=balls[6].pos.y-50
+  arc(x, y, 160, 80, PI/2-0.2, PI+0.1, OPEN);
+  //ellipse(x,y,160,80)
+  //80cos+40sin
+  
+  circle(x+80*cos(PI-0.1),y+40*sin(PI-0.1),10)
+  circle(x+80*cos(PI/1.35-0.1),y+40*sin(PI/1.35-0.1),10)
+  circle(x+80*cos(PI/2+0.1),y+40*sin(PI/2+0.1),10)
+  
+  //line(x+80*cos(PI/2-0.2),y+40*sin(PI/2-0.2),wings[7].pos.x,wings[7].pos.y)
+  
+  let A1=createVector(x+80*cos(PI-0.1),y+40*sin(PI-0.1))
+  let A2=createVector(x+80*cos(PI/1.35-0.1),y+40*sin(PI/1.35-0.1))
+  let A3=createVector(x+80*cos(PI/2+0.1),y+40*sin(PI/2+0.1))
+  
+  drawEllipse(A1,wings[0].pos)
+  drawEllipse(A2,wings[3].pos)
+  drawEllipse(A3,wings[6].pos)
 
-let updateConfidence = false;
-let showC = false;
+  push()
+  
+  wings[0].pos.x=balls[6].pos.x-250//300,100,350
+  wings[0].pos.y=balls[6].pos.y//-50
+  
+  wings[7].pos.x=balls[6].pos.x
+  wings[7].pos.y=balls[6].pos.y
+  for(let w of wings){
+   
+    w.mass = 10;
+    w.minHeight=windowHeight;
+    w.update();
+    w.display();
 
-let updateResilience = false;
-let showR = false;
+    let gravity = createVector(0, 4);
+    w.applyForce(gravity);
+    w.stayInCanvas();
+  }
+  pop()
+  
+  for (let l of linkWing) {
+    strokeWeight(1)
+    l.update();
+    //l.display();
+  }
+}
+function drawRightWings(){
+  strokeWeight(6)
+  let x=balls[7].pos.x+10
+  let y=balls[7].pos.y-60
+  noFill()
+  arc(x, y, 160, 80, 0, PI/2, OPEN);
+  
+  circle(x+80*cos(PI/2-0.1),y+40*sin(PI/2-0.1),10)
+  circle(x+80*cos(PI/3-0.1),y+40*sin(PI/3-0.1),10)
+  circle(x+80*cos(0.1),y+40*sin(0.1),10)
 
-let showTransition = false;
+  let A1=createVector(x+80*cos(PI/2-0.1),y+40*sin(PI/2-0.1))
+  let A2=createVector(x+80*cos(PI/3-0.1),y+40*sin(PI/3-0.1))
+  let A3=createVector(x+80*cos(0.1),y+40*sin(0.1))
+  
+  drawEllipse(A1,wings2[0].pos)
+  drawEllipse(A2,wings2[4].pos)
+  drawEllipse(A3,wings2[7].pos)
 
-function drawButton() {
-  let currentTime = millis() - openTime;
-  let color1 = "#2f2f2f";
+  
+  wings2[0].pos.x=balls[7].pos.x //balls[7].pos.x //110,100,250
+  wings2[0].pos.y=balls[7].pos.y      //290,350,350
+  
+  wings2[7].pos.x=balls[7].pos.x+150
+  wings2[7].pos.y=balls[7].pos.y
+  
+  for(let w of wings2){
+   
+    w.minHeight=windowHeight;
+    w.mass = 10;
+    w.update();
+    w.display();
 
-  // if (mouseIsInside) {
-  //   if (!wasDetected) {
-  //     triggerCount++;
-  //     wasDetected = true;
-  //   }
-  // } else {
-  //   wasDetected = false;
+    let gravity = createVector(0, 3);
+    w.applyForce(gravity);
+    w.stayInCanvas();
+  }
+
+  
+  for (let l of linkWing2) {
+    strokeWeight(1)
+    l.update();
+    //l.display();
+  }
+}
+
+
+function drawTails() {
+  for (let l of linkTail) {
+    l.update();
+    l.display();
+  }
+
+  noFill();
+  stroke(0);
+  strokeWeight(50);
+  beginShape();
+  curveVertex(balls[3].pos.x, balls[3].pos.y);
+  for (let t of tails) {
+    t.minHeight=windowHeight;
+    t.drag();
+    t.stayInCanvas();
+    t.update();
+    t.display();
+
+    let G = createVector(0, 4);
+    t.applyForce(G);
+
+    curveVertex(t.pos.x, t.pos.y);
+  }
+
+  endShape();
+
+  tails[0].pos.x = balls[3].pos.x;
+  tails[0].pos.y = balls[3].pos.y;
+  for (let b of balls) {
+    b.stayInCanvas();
+  }
+}
+
+
+function mousePressed() {
+  for (let i = 0; i < balls.length; i++) {
+    let b = balls[i];
+    if (b.pressed()) {
+      break;
+    }
+  }
+  // for(let b of balls){
+  //   b.stayInCanvas()
   // }
+}
 
-  //text(triggerCount, 20, 100);
-  //text(stopCount, 20, 140);
+function mousedrag() {
+  for (let i = 0; i < balls.length; i++) {
+    let b = balls[i];
+    b.drag();
+    //b.stayInCanvas()
+  }
+}
 
-  if (currentTime < grayTime) {
-    color1 = "#2f2f2f";
+function mouseReleased() {
+  for (let i = 0; i < balls.length; i++) {
+    let b = balls[i];
+    b.isDragging = false;
+    //b.stayInCanvas()
+  }
+}
 
-    for (let s of stars) {
-      if (currentTime < grayTime - lowerSpeed / 2) {
-        s.x += s.speed;
-        if (s.x > width) {
-          s.x = 0;
+///// CLASS /////
+
+let C_GRAVITY = 1;
+let DISTANCE_BTW_BALLS = 30;
+
+class Spring {
+  constructor(a, b, restLength, stiffness) {
+    this.bobA = a;
+    this.bobB = b;
+    this.len = restLength;
+    this.k = stiffness; // spring constant
+  }
+  update() {
+    let vector = p5.Vector.sub(this.bobB.pos, this.bobA.pos);
+    let distance = vector.mag();
+    let stretch = distance - this.len;
+    let strength = -1 * stretch * this.k; // hooke's law
+
+    // force to bobB
+    let force = vector.copy();
+    force.normalize();
+    force.mult(strength);
+    this.bobB.applyForce(force);
+
+    // force to bobB
+    let force1 = vector.copy();
+    force1.normalize();
+    force1.mult(strength * -1);
+    this.bobA.applyForce(force1);
+
+    //text(strength.toFixed(2), this.bobB.pos.x + 50, this.bobB.pos.y);
+  }
+  display() {
+    line(this.bobA.pos.x, this.bobA.pos.y, this.bobB.pos.x, this.bobB.pos.y);
+    //circle(this.bobB.pos.x, this.bobB.pos.y, 8);
+  }
+}
+
+class Ball {
+  constructor(x, y, rad) {
+    this.pos = createVector(
+      40 * cos((x * PI) / 4 - PI / 8),
+      40 * sin((x * PI) / 4 - PI / 8)
+    );
+    this.vel = createVector(0, 0);
+    this.acc = createVector(0, 0);
+    this.rad = rad;
+    this.mass = 12; // MASS!
+    //
+    this.damping = 0.89;
+    this.isDragging = false;
+    this.minHeight = windowHeight;
+    //this.minRight = width;
+  }
+  update() {
+    this.vel.add(this.acc);
+    this.pos.add(this.vel);
+    this.acc.mult(0);
+
+    // let's apply damping here
+    this.vel.mult(this.damping); // -5%;
+  }
+  applyForce(f) {
+    if (this.mass > 0) {
+      let force = p5.Vector.div(f, this.mass);
+      this.acc.add(force);
+    }
+  }
+  attractedTo(others) {
+    for (let i = 0; i < others.length; i++) {
+      let other = others[i];
+      if (this != other) {
+        let distance = this.pos.dist(other.pos);
+        let magnitude =
+          (C_GRAVITY * this.mass * other.mass) / (distance * distance);
+        let force = p5.Vector.sub(other.pos, this.pos);
+        force.normalize();
+        force.mult(magnitude);
+        this.applyForce(force);
+      }
+    }
+  }
+  repelledFrom(others) {
+    // this method is duplicated from attractedTo()
+    // then, the force vector is flipped.
+    for (let i = 0; i < others.length; i++) {
+      let other = others[i];
+      if (this != other) {
+        let distance = this.pos.dist(other.pos);
+
+        if (distance < this.rad + DISTANCE_BTW_BALLS) {
+          let magnitude =
+            (C_GRAVITY * this.mass * other.mass) / (distance * distance);
+          let force = p5.Vector.sub(other.pos, this.pos);
+          force.normalize();
+          force.mult(-1); // ***
+          force.mult(magnitude);
+          this.applyForce(force);
         }
       }
     }
-    if (countxoff <= width) {
-      countxoff += 30;
-    } else if (countxoff > width) {
-      countxoff = 0;
-    }
-    if (currentTime > grayTime - lowerSpeed && forward > 0) {
-      forward -= 0.005;
-      constrain(forward, 0, inc * 30);
-      if (countxoff <= width) {
-        countxoff += 8;
-      } else if (countxoff > width) {
-        countxoff = 0;
-      }
-    }
-  } else if (currentTime < grayTime + twinkleTime) {
-    // rightPos += 0.95;
-    // leftPos -= 0.95;
-    rightPos += 1.4;
-    leftPos -= 1.4;
-    forward = 0;
-    let t = mSin(frameCount * 0.1);
-    if (t > 0) {
-      color1 = "#fed932";
+  }
+  stayInCanvas() {
+    //line(100, 300, 200, 300);
+    // if(this.x>100&&this.x<300&&this.y<300){
+    //   this.minHeight=280
+    // }else{
+    //   this.minHeight=height
+    // }
+    this.pos.x = constrain(this.pos.x, 0, width);
+    this.pos.y = constrain(this.pos.y, -2 * this.rad, this.minHeight);
+  }
+
+  pressed() {
+    let distance = dist(mouseX, mouseY, this.pos.x, this.pos.y);
+    if (distance < this.rad) {
+      this.isDragging = true;
+      return true;
     } else {
-      color1 = "#2f2f2f";
+      return false;
     }
-  } else if (currentTime < yellowTime + twinkleTime + grayTime) {
-    color1 = "#fed932";
-  } else if (currentTime < yellowTime + twinkleTime * 2 + grayTime) {
-    // rightPos -= 0.95;
-    // leftPos += 0.95;
-    rightPos -= 1.4;
-    leftPos += 1.4;
-    let t = mSin(frameCount * 0.1);
-    if (t > 0) {
-      color1 = "#fed932";
-    } else {
-      color1 = "#2f2f2f";
+  }
+  drag() {
+    if (this.isDragging) {
+      // in
+      this.pos.x = mouseX;
+      this.pos.y = mouseY;
     }
-  } else {
-    leftPos = 0;
-    rightPos = 0;
-    forward = inc * 30;
-    openTime = millis();
-    currentTime = millis() - openTime;
-    stopCount++;
   }
 
-  if (stopCount == 1) {
-    updateConfidence = true;
-  }
-
-  // if(stopCount==3){
-  //   updateConfidence=false
-  //   showC=false
-  // }
-  if (updateConfidence) {
-    if (currentTime > grayTime + twinkleTime / 2) {
-      showC = true;
-    }
-  }
-  if (showC) {
+  display() {
     push();
-    translate(walkX, walkY);
-    drawConfidence();
+    translate(this.pos.x, this.pos.y);
+    stroke(255, 0, 0);
+    fill(255, 150);
+    //circle(0, 0, this.rad * 2);
     pop();
-    confidenceBehave();
-  } else {
-    walkX = 0;
-    walkY = 0;
-    stage = 0;
-    eyeOff = 0;
-  }
-
-  if (stopCount == 5) {
-    updateResilience = true;
-  }
-
-  // if(stopCount==7){
-  //   updateResilience=false
-  //   showR=false
-  // }
-  if (updateResilience) {
-    if (currentTime > grayTime + twinkleTime / 2) {
-      showR = true;
-    }
-  }
-  if (showR) {
-    push();
-    translate(floatX, floatY);
-    drawResilience();
-    pop();
-    resilienceBehave();
-  } else {
-    floatX = 0;
-    floatY = 0;
-    stage2 = 0;
-  }
-
-  if (stopCount > 7) {
-    stopCount = 0;
-  }
-  if (stopCount == 1 || stopCount == 7) {
-    showTransition = true;
-  }
-  if (showTransition) {
-    if (stopCount == 3) {
-      if (transitionPosX < width + 800) {
-        rotateAngle = -0.6;
-        transitionPosX += 10;
-        transitionPosY -= 5;
-      }
-    }
-    if (stopCount == 7) {
-      if (transitionPosX > -800) {
-        rotateAngle = 2.4;
-        transitionPosX -= 10;
-        transitionPosY += 5;
-      }
-    }
-  }
-
-  fill(color1);
-  noStroke();
-
-  ellipse(480, 35, 20, 20);
-}
-
-function update() {
-  for (let f of flocks) {
-    f.generate();
-  }
-}
-function mousePressed() {
-  if (mouseX > 0 && mouseX < width && mouseY > 0 && mouseY < height) {
-    let fs = fullscreen();
-    fullscreen(!fs);
   }
 }
